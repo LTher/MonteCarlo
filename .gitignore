@@ -1,2 +1,5 @@
 .vs/
 x64/
+MonteCarlo/MonteCarlo.vcxproj
+MonteCarlo/MonteCarlo.vcxproj.filters
+MonteCarlo/MonteCarlo.MonteCarlo.vcxproj.user
