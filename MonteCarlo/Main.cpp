@@ -14,9 +14,11 @@ const int SAMPLE = 4096;
 // 每次采样的亮度
 const double BRIGHTNESS = (2.0f * 3.1415926f) * (1.0f / double(SAMPLE));
 
+const int SCALE = 1;
+
 // 输出图像分辨率
-const int WIDTH = 256;
-const int HEIGHT = 256;
+const int WIDTH = 256 * SCALE;
+const int HEIGHT = 256 * SCALE;
 
 // 相机参数
 const double SCREEN_Z = 1.1;        // 视平面 z 坐标
@@ -47,6 +49,11 @@ typedef struct Material
 	bool isEmissive = false;        // 是否发光
 	vec3 normal = vec3(0, 0, 0);    // 法向量
 	vec3 color = vec3(0, 0, 0);     // 颜色
+	double specularRate = 0.0f;     // 反射光占比
+	double roughness = 1.0f;        // 粗糙程度
+	double refractRate = 0.0f;      // 折射光占比
+	double refractAngle = 1.0f;     // 折射率
+	double refractRoughness = 0.0f; // 折射粗糙度
 }Material;
 
 // 光线求交结果
@@ -124,6 +131,59 @@ public:
 		res.material.normal = N;    // 要返回正确的法向
 		return res;
 	};
+};
+
+// 球
+class Sphere : public Shape
+{
+
+
+public:
+	Sphere() {
+
+	}
+	Sphere(vec3 o, double r, vec3 c) {
+
+		O = o; R = r; material.color = c;
+	}
+	vec3 O;             // 圆心
+	double R;           // 半径
+	Material material;  // 材质
+
+	// 与光线求交
+	HitResult intersect(Ray ray)
+	{
+
+
+		HitResult res;
+
+		vec3 S = ray.startPoint;        // 射线起点
+		vec3 d = ray.direction;         // 射线方向
+
+		float OS = length(O - S);
+		float SH = dot(O - S, d);
+		float OH = sqrt(pow(OS, 2) - pow(SH, 2));
+
+		if (OH > R) return res; // OH大于半径则不相交
+
+		float PH = sqrt(pow(R, 2) - pow(OH, 2));
+
+		float t1 = length(SH) - PH;
+		float t2 = length(SH) + PH;
+		float t = (t1 < 0) ? (t2) : (t1);   // 最近距离
+		vec3 P = S + t * d;     // 交点
+
+		// 防止自己交自己
+		if (fabs(t1) < 0.0005f || fabs(t2) < 0.0005f) return res;
+
+		// 装填返回结果
+		res.isHit = true;
+		res.distance = t;
+		res.hitPoint = P;
+		res.material = material;
+		res.material.normal = normalize(P - O); // 要返回正确的法向
+		return res;
+	}
 };
 
 // 输出 SRC 数组中的数据到图像
@@ -212,10 +272,9 @@ vec3 randomDirection(vec3 n)
 	return normalize(randomVec3() + n);
 }
 // 路径追踪
-vec3 pathTracing(vector<Shape*>& shapes, Ray ray)
+vec3 pathTracing(vector<Shape*>& shapes, Ray ray, int depth)
 {
-
-
+	if (depth > 8) return vec3(0);
 	HitResult res = shoot(shapes, ray);
 
 	if (!res.isHit) return vec3(0); // 未命中
@@ -223,8 +282,45 @@ vec3 pathTracing(vector<Shape*>& shapes, Ray ray)
 	// 如果发光则返回颜色
 	if (res.material.isEmissive) return res.material.color;
 
-	// 否则直接返回
-	return vec3(0);
+	// 有 P 的概率终止
+	double r = randf();
+	float P = 0.8;
+	if (r > P) return vec3(0);
+
+	// 否则继续
+	Ray randomRay;
+	randomRay.startPoint = res.hitPoint;
+	randomRay.direction = randomDirection(res.material.normal);
+
+	vec3 color = vec3(0);
+	float cosine = fabs(dot(-ray.direction, res.material.normal));
+
+	// 根据反射率决定光线最终的方向
+	r = randf();
+	if (r < res.material.specularRate)  // 镜面反射
+	{
+		vec3 ref = normalize(reflect(ray.direction, res.material.normal));
+		randomRay.direction = mix(ref, randomRay.direction, res.material.roughness);
+		color = pathTracing(shapes, randomRay, depth + 1) * cosine;
+	}
+	else if (res.material.specularRate <= r && r <= res.material.refractRate)    // 折射
+	{
+
+
+		vec3 ref = normalize(refract(ray.direction, res.material.normal, float(res.material.refractAngle)));
+		randomRay.direction = mix(ref, -randomRay.direction, res.material.refractRoughness);
+		color = pathTracing(shapes, randomRay, depth + 1) * cosine;
+	}
+	else    // 漫反射
+	{
+		vec3 srcColor = res.material.color;
+		vec3 ptColor = pathTracing(shapes, randomRay, depth + 1) * cosine;
+		color = ptColor * srcColor;    // 和原颜色混合
+	}
+
+	return color / P;
+
+	return color / P;
 }
 
 
@@ -236,18 +332,60 @@ int main() {
 	memset(image, 0.0, sizeof(double) * WIDTH * HEIGHT * 3);
 
 	vector<Shape*> shapes;  // 几何物体的集合
-	// 三角形
-	shapes.push_back(new Triangle(vec3(-0.5, -0.5, -0.5), vec3(0.5, -0.5, -0.5), vec3(0, -0.5, 0.5), CYAN));
-	// 底部平面
-	shapes.push_back(new Triangle(vec3(10, -1, 10), vec3(-10, -1, -10), vec3(-10, -1, 10), WHITE));
-	shapes.push_back(new Triangle(vec3(10, -1, 10), vec3(10, -1, -10), vec3(-10, -1, -10), WHITE));
-	// 光源
-	Triangle l1 = Triangle(vec3(0.6, 0.99, 0.4), vec3(-0.2, 0.99, -0.4), vec3(-0.2, 0.99, 0.4), WHITE);
-	Triangle l2 = Triangle(vec3(0.6, 0.99, 0.4), vec3(0.6, 0.99, -0.4), vec3(-0.2, 0.99, -0.4), WHITE);
+
+	//shapes.push_back(new Triangle(vec3(-0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, 0.4, -0.6), YELLOW));
+	//shapes.push_back(new Triangle(vec3(0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, -0.95, -0.6), YELLOW));
+	Triangle tt = Triangle(vec3(-0.2, -0.2, -0.95), vec3(0.2, -0.2, -0.95), vec3(-0.0, -0.9, 0.4), YELLOW);
+	//tt.material.specularRate = 0.1;
+	//tt.material.refractRate = 0.85;
+	//tt.material.refractRoughness = 0.3;
+	//shapes.push_back(&tt);
+
+	shapes.push_back(new Triangle(vec3(-0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, 0.4, -0.6), YELLOW));
+	shapes.push_back(new Triangle(vec3(0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, -0.95, -0.6), YELLOW));
+
+	// 发光物
+	Triangle l1 = Triangle(vec3(0.4, 0.99, 0.4), vec3(-0.4, 0.99, -0.4), vec3(-0.4, 0.99, 0.4), WHITE);
+	Triangle l2 = Triangle(vec3(0.4, 0.99, 0.4), vec3(0.4, 0.99, -0.4), vec3(-0.4, 0.99, -0.4), WHITE);
 	l1.material.isEmissive = true;
 	l2.material.isEmissive = true;
 	shapes.push_back(&l1);
 	shapes.push_back(&l2);
+
+	// 球
+	Sphere s1 = Sphere(vec3(-0.65, -0.7, 0.0), 0.3, GREEN);
+	Sphere s2 = Sphere(vec3(0.0, -0.3, 0.0), 0.4, WHITE);
+	Sphere s3 = Sphere(vec3(0.65, 0.1, 0.0), 0.3, BLUE);
+	s1.material.specularRate = 0.7;
+	s1.material.roughness = 0.1;
+
+	s2.material.specularRate = 0.3;
+	s2.material.refractRate = 0.95;
+	s2.material.refractAngle = 0.1;
+	s2.material.refractRoughness = 0.05;
+
+	s3.material.specularRate = 0.3;
+
+	shapes.push_back(&s1);
+	shapes.push_back(&s2);
+	shapes.push_back(&s3);
+
+	// 背景盒子
+	// bottom
+	shapes.push_back(new Triangle(vec3(1, -1, 1), vec3(-1, -1, -1), vec3(-1, -1, 1), WHITE));
+	shapes.push_back(new Triangle(vec3(1, -1, 1), vec3(1, -1, -1), vec3(-1, -1, -1), WHITE));
+	// top
+	shapes.push_back(new Triangle(vec3(1, 1, 1), vec3(-1, 1, 1), vec3(-1, 1, -1), WHITE));
+	shapes.push_back(new Triangle(vec3(1, 1, 1), vec3(-1, 1, -1), vec3(1, 1, -1), WHITE));
+	// back
+	shapes.push_back(new Triangle(vec3(1, -1, -1), vec3(-1, 1, -1), vec3(-1, -1, -1), CYAN));
+	shapes.push_back(new Triangle(vec3(1, -1, -1), vec3(1, 1, -1), vec3(-1, 1, -1), CYAN));
+	// left
+	shapes.push_back(new Triangle(vec3(-1, -1, -1), vec3(-1, 1, 1), vec3(-1, -1, 1), BLUE));
+	shapes.push_back(new Triangle(vec3(-1, -1, -1), vec3(-1, 1, -1), vec3(-1, 1, 1), BLUE));
+	// right
+	shapes.push_back(new Triangle(vec3(1, 1, 1), vec3(1, -1, -1), vec3(1, -1, 1), RED));
+	shapes.push_back(new Triangle(vec3(1, -1, -1), vec3(1, 1, 1), vec3(1, 1, -1), RED));
 
 	int picIndex = 0;
 	// render loop
@@ -281,8 +419,6 @@ int main() {
 
 					if (res.isHit)
 					{
-
-
 						// 命中光源直接返回光源颜色
 						if (res.material.isEmissive)
 						{
@@ -296,10 +432,30 @@ int main() {
 							randomRay.startPoint = res.hitPoint;
 							randomRay.direction = randomDirection(res.material.normal);
 
-							// 颜色积累
-							vec3 srcColor = res.material.color;
-							vec3 ptColor = pathTracing(shapes, randomRay);
-							color = ptColor * srcColor;    // 和原颜色混合
+							// 根据反射率决定光线最终的方向
+							double r = randf();
+							if (r < res.material.specularRate)  // 镜面反射
+							{
+
+
+								vec3 ref = normalize(reflect(ray.direction, res.material.normal));
+								randomRay.direction = mix(ref, randomRay.direction, res.material.roughness);
+								color = pathTracing(shapes, randomRay, 0);
+							}
+							else if (res.material.specularRate <= r && r <= res.material.refractRate)    // 折射
+							{
+								vec3 ref = normalize(refract(ray.direction, res.material.normal, float(res.material.refractAngle)));
+								randomRay.direction = mix(ref, -randomRay.direction, res.material.refractRoughness);
+								color = pathTracing(shapes, randomRay, 0);
+							}
+							else    // 漫反射
+							{
+
+
+								vec3 srcColor = res.material.color;
+								vec3 ptColor = pathTracing(shapes, randomRay, 0);
+								color = ptColor * srcColor;    // 和原颜色混合
+							}
 							color *= BRIGHTNESS;
 						}
 					}
