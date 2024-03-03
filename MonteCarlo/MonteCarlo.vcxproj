@@ -75,22 +75,22 @@
     <LibraryPath>D:\Code\SoftRender\OpenGL\lib;D:\OpenCV\build\x64\vc16\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>D:\Code\SoftRender\OpenGL\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\Code\SoftRender\OpenGL\lib;D:\OpenCV\build\x64\vc16\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\Code\SoftRender\OpenGL\include;D:\Code\MonteCarlo\OpenGL\SOIL2\include;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\Code\SoftRender\OpenGL\lib;D:\OpenCV\build\x64\vc16\lib;D:\Code\MonteCarlo\OpenGL\SOIL2\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\Code\Libs\glm;D:\OpenCV\build\include\opencv2;D:\OpenCV\build\include;$(SolutionDir)OpenGL\glfw\include;$(SolutionDir)OpenGL\glew\include;$(SolutionDir)OpenGL\glut;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Code\Libs\glm;D:\OpenCV\build\include\opencv2;D:\OpenCV\build\include;$(SolutionDir)OpenGL\glfw\include;$(SolutionDir)OpenGL\glew\include;$(SolutionDir)OpenGL\glut;D:\Code\MonteCarlo\OpenGL\SOIL2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;opencv_world470d.lib;glew32s.lib;glfw3.lib;glut32.lib;glut.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)OpenGL\glut;$(SolutionDir)OpenGL\glfw\lib-vc2022;$(SolutionDir)OpenGL\glew\lib\Release\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opengl32.lib;glew32.lib;glfw3.lib;glut32.lib;glut.lib;soil2-debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)OpenGL\glut;$(SolutionDir)OpenGL\glfw\lib-vc2022;$(SolutionDir)OpenGL\glew\lib\Release\Win32;D:\Code\MonteCarlo\OpenGL\SOIL2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -142,7 +142,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="lib\hdrloader.cpp" />
     <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="lib\hdrloader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

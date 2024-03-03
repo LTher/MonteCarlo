@@ -1,526 +1,820 @@
 #include <iostream>
-#include <random>
-#include <omp.h>    // openmp多线程加速
+#include <iomanip>
+#include <string>
+#include <fstream>
+#include <vector>
+#include <sstream>
+#include <iostream>
+#include <algorithm>
+#include <ctime>
+
+#include <GL/glew.h>
+#include <glut.h>
 #include <glm/glm.hpp>
-//#include <opencv2/opencv.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <SOIL2/SOIL2.h>
 
-#define GLEW_STATIC     
-#include <GL/glew.h>    
-#include <GLFW/glfw3.h> 
-//using namespace cv;
+
+#include "lib/hdrloader.h"
+
+#define INF 114514.0
+
 using namespace glm;
-using namespace std;
-// --------------------- end of include --------------------- //
 
-//// 采样次数
-//const int SAMPLE = 4096;
-//
-//// 每次采样的亮度
-//const double BRIGHTNESS = (2.0f * 3.1415926f) * (1.0f / double(SAMPLE));
-//
-//const int SCALE = 1;
-//
-//// 输出图像分辨率
-//const int WIDTH = 256 * SCALE;
-//const int HEIGHT = 256 * SCALE;
-//
-//// 相机参数
-//const double SCREEN_Z = 1.1;        // 视平面 z 坐标
-//const vec3 EYE = vec3(0, 0, 4.0);   // 相机位置
-//
-//// 颜色
-//const vec3 RED(1, 0.5, 0.5);
-//const vec3 GREEN(0.5, 1, 0.5);
-//const vec3 BLUE(0.5, 0.5, 1);
-//const vec3 YELLOW(1.0, 1.0, 0.1);
-//const vec3 CYAN(0.1, 1.0, 1.0);
-//const vec3 MAGENTA(1.0, 0.1, 1.0);
-//const vec3 GRAY(0.5, 0.5, 0.5);
-//const vec3 WHITE(1, 1, 1);
-//
-//// --------------- end of global variable definition --------------- //
-//
-//// 光线
-//typedef struct Ray
-//{
-//	vec3 startPoint = vec3(0, 0, 0);    // 起点
-//	vec3 direction = vec3(0, 0, 0);     // 方向
-//}Ray;
-//
-//// 物体表面材质定义
-//typedef struct Material
-//{
-//	bool isEmissive = false;        // 是否发光
-//	vec3 normal = vec3(0, 0, 0);    // 法向量
-//	vec3 color = vec3(0, 0, 0);     // 颜色
-//	double specularRate = 0.0f;     // 反射光占比
-//	double roughness = 1.0f;        // 粗糙程度
-//	double refractRate = 0.0f;      // 折射光占比
-//	double refractAngle = 1.0f;     // 折射率
-//	double refractRoughness = 0.0f; // 折射粗糙度
-//}Material;
-//
-//// 光线求交结果
-//typedef struct HitResult
-//{
-//	bool isHit = false;             // 是否命中
-//	double distance = 0.0f;         // 与交点的距离
-//	vec3 hitPoint = vec3(0, 0, 0);  // 光线命中点
-//	Material material;              // 命中点的表面材质
-//}HitResult;
-//
-//class Shape
-//{
-//
-//
-//public:
-//	Shape() {
-//
-//	}
-//	virtual HitResult intersect(Ray ray) {
-//
-//		return HitResult();
-//	}
-//};
-//
-//// 三角形
-//class Triangle : public Shape
-//{
-//public:
-//	Triangle() {
-//
-//	}
-//	Triangle(vec3 P1, vec3 P2, vec3 P3, vec3 C)
-//	{
-//		p1 = P1, p2 = P2, p3 = P3;
-//		material.normal = normalize(cross(p2 - p1, p3 - p1)); material.color = C;
-//	}
-//	vec3 p1, p2, p3;    // 三顶点
-//	Material material;  // 材质
-//
-//	// 与光线求交
-//	HitResult intersect(Ray ray)
-//	{
-//
-//
-//		HitResult res;
-//
-//		vec3 S = ray.startPoint;        // 射线起点
-//		vec3 d = ray.direction;         // 射线方向
-//		vec3 N = material.normal;       // 法向量
-//		if (dot(N, d) > 0.0f) N = -N;   // 获取正确的法向量
-//
-//		// 如果视线和三角形平行
-//		if (fabs(dot(N, d)) < 0.00001f) return res;
-//
-//		// 距离
-//		float t = (dot(N, p1) - dot(S, N)) / dot(d, N);
-//		if (t < 0.0005f) return res;    // 如果三角形在相机背面
-//
-//		// 交点计算
-//		vec3 P = S + d * t;
-//
-//		// 判断交点是否在三角形中
-//		vec3 c1 = cross(p2 - p1, P - p1);
-//		vec3 c2 = cross(p3 - p2, P - p2);
-//		vec3 c3 = cross(p1 - p3, P - p3);
-//		vec3 n = material.normal;   // 需要 "原生法向量" 来判断
-//		if (dot(c1, n) < 0 || dot(c2, n) < 0 || dot(c3, n) < 0) return res;
-//
-//		// 装填返回结果
-//		res.isHit = true;
-//		res.distance = t;
-//		res.hitPoint = P;
-//		res.material = material;
-//		res.material.normal = N;    // 要返回正确的法向
-//		return res;
-//	};
-//};
-//
-//// 球
-//class Sphere : public Shape
-//{
-//
-//
-//public:
-//	Sphere() {
-//
-//	}
-//	Sphere(vec3 o, double r, vec3 c) {
-//
-//		O = o; R = r; material.color = c;
-//	}
-//	vec3 O;             // 圆心
-//	double R;           // 半径
-//	Material material;  // 材质
-//
-//	// 与光线求交
-//	HitResult intersect(Ray ray)
-//	{
-//
-//
-//		HitResult res;
-//
-//		vec3 S = ray.startPoint;        // 射线起点
-//		vec3 d = ray.direction;         // 射线方向
-//
-//		float OS = length(O - S);
-//		float SH = dot(O - S, d);
-//		float OH = sqrt(pow(OS, 2) - pow(SH, 2));
-//
-//		if (OH > R) return res; // OH大于半径则不相交
-//
-//		float PH = sqrt(pow(R, 2) - pow(OH, 2));
-//
-//		float t1 = length(SH) - PH;
-//		float t2 = length(SH) + PH;
-//		float t = (t1 < 0) ? (t2) : (t1);   // 最近距离
-//		vec3 P = S + t * d;     // 交点
-//
-//		// 防止自己交自己
-//		if (fabs(t1) < 0.0005f || fabs(t2) < 0.0005f) return res;
-//
-//		// 装填返回结果
-//		res.isHit = true;
-//		res.distance = t;
-//		res.hitPoint = P;
-//		res.material = material;
-//		res.material.normal = normalize(P - O); // 要返回正确的法向
-//		return res;
-//	}
-//};
-//
-//// 输出 SRC 数组中的数据到图像
-//void writeImg(double* SRC, Mat& mat)
-//{
-//
-//
-//
-//	unsigned char* image = new unsigned char[WIDTH * HEIGHT * 3];// 图像buffer
-//	unsigned char* p = image;
-//	double* S = SRC;    // 源数据
-//
-//	for (int i = 0; i < HEIGHT; i++)
-//	{
-//
-//
-//		for (int j = 0; j < WIDTH; j++)
-//		{
-//
-//			double* tempS = S + (i * WIDTH + j) * 3 + 2;
-//			*p++ = (unsigned char)clamp((*tempS--) * 255, 0.0, 255.0);  // opencv B 通道
-//			*p++ = (unsigned char)clamp((*tempS--) * 255, 0.0, 255.0);  // opencv G 通道
-//			*p++ = (unsigned char)clamp((*tempS--) * 255, 0.0, 255.0);  // opencv R 通道
-//
-//
-//		}
-//	}
-//
-//	mat = Mat(WIDTH, HEIGHT, CV_8UC3, image).clone();
-//}
-//
-//// 返回距离最近 hit 的结果
-//HitResult shoot(vector<Shape*>& shapes, Ray ray)
-//{
-//
-//
-//	HitResult res, r;
-//	res.distance = 1145141919.810f; // inf
-//
-//	// 遍历所有图形，求最近交点
-//	for (auto& shape : shapes)
-//	{
-//
-//
-//		r = shape->intersect(ray);
-//		if (r.isHit && r.distance < res.distance) res = r;  // 记录距离最近的求交结果
-//	}
-//
-//	return res;
-//}
-//
-//
-//// 0-1 随机数生成
-//std::uniform_real_distribution<> dis(0.0, 1.0);
-//random_device rd;
-//mt19937 gen(rd());
-//double randf()
-//{
-//	return dis(gen);
-//}
-//
-//// 单位球内的随机向量
-//vec3 randomVec3()
-//{
-//	vec3 d;
-//	do
-//	{
-//		d = 2.0f * vec3(randf(), randf(), randf()) - vec3(1, 1, 1);
-//	} while (dot(d, d) > 1.0);
-//	return normalize(d);
-//}
-//// 法向半球随机向量
-////vec3 randomDirection(vec3 n)
-////{
-////	// 法向半球
-////	vec3 d;
-////	do
-////	{
-////		d = randomVec3();
-////	} while (dot(d, n) < 0.0f);
-////	return d;
-////}
-//// 法向半球随机向量
-//vec3 randomDirection(vec3 n)
-//{
-//	return normalize(randomVec3() + n);
-//}
-//// 路径追踪
-//vec3 pathTracing(vector<Shape*>& shapes, Ray ray, int depth)
-//{
-//	if (depth > 8) return vec3(0);
-//	HitResult res = shoot(shapes, ray);
-//
-//	if (!res.isHit) return vec3(0); // 未命中
-//
-//	// 如果发光则返回颜色
-//	if (res.material.isEmissive) return res.material.color;
-//
-//	// 有 P 的概率终止
-//	double r = randf();
-//	float P = 0.8;
-//	if (r > P) return vec3(0);
-//
-//	// 否则继续
-//	Ray randomRay;
-//	randomRay.startPoint = res.hitPoint;
-//	randomRay.direction = randomDirection(res.material.normal);
-//
-//	vec3 color = vec3(0);
-//	float cosine = fabs(dot(-ray.direction, res.material.normal));
-//
-//	// 根据反射率决定光线最终的方向
-//	r = randf();
-//	if (r < res.material.specularRate)  // 镜面反射
-//	{
-//		vec3 ref = normalize(reflect(ray.direction, res.material.normal));
-//		randomRay.direction = mix(ref, randomRay.direction, res.material.roughness);
-//		color = pathTracing(shapes, randomRay, depth + 1) * cosine;
-//	}
-//	else if (res.material.specularRate <= r && r <= res.material.refractRate)    // 折射
-//	{
-//
-//
-//		vec3 ref = normalize(refract(ray.direction, res.material.normal, float(res.material.refractAngle)));
-//		randomRay.direction = mix(ref, -randomRay.direction, res.material.refractRoughness);
-//		color = pathTracing(shapes, randomRay, depth + 1) * cosine;
-//	}
-//	else    // 漫反射
-//	{
-//		vec3 srcColor = res.material.color;
-//		vec3 ptColor = pathTracing(shapes, randomRay, depth + 1) * cosine;
-//		color = ptColor * srcColor;    // 和原颜色混合
-//	}
-//
-//	return color / P;
-//
-//	return color / P;
-//}
+// ----------------------------------------------------------------------------- //
+
+// 物体表面材质定义
+struct Material {
+    vec3 emissive = vec3(0, 0, 0);  // 作为光源时的发光颜色
+    vec3 baseColor = vec3(1, 1, 1);
+    float subsurface = 0.0;
+    float metallic = 0.0;
+    float specular = 0.0;
+    float specularTint = 0.0;
+    float roughness = 0.0;
+    float anisotropic = 0.0;
+    float sheen = 0.0;
+    float sheenTint = 0.0;
+    float clearcoat = 0.0;
+    float clearcoatGloss = 0.0;
+    float IOR = 1.0;
+    float transmission = 0.0;
+};
+
+// 三角形定义
+struct Triangle {
+    vec3 p1, p2, p3;    // 顶点坐标
+    vec3 n1, n2, n3;    // 顶点法线
+    Material material;  // 材质
+};
+
+// BVH 树节点
+struct BVHNode {
+    int left, right;    // 左右子树索引
+    int n, index;       // 叶子节点信息               
+    vec3 AA, BB;        // 碰撞盒
+};
+
+// ----------------------------------------------------------------------------- //
+
+struct Triangle_encoded {
+    vec3 p1, p2, p3;    // 顶点坐标
+    vec3 n1, n2, n3;    // 顶点法线
+    vec3 emissive;      // 自发光参数
+    vec3 baseColor;     // 颜色
+    vec3 param1;        // (subsurface, metallic, specular)
+    vec3 param2;        // (specularTint, roughness, anisotropic)
+    vec3 param3;        // (sheen, sheenTint, clearcoat)
+    vec3 param4;        // (clearcoatGloss, IOR, transmission)
+};
+
+struct BVHNode_encoded {
+    vec3 childs;        // (left, right, 保留)
+    vec3 leafInfo;      // (n, index, 保留)
+    vec3 AA, BB;
+};
+
+// ----------------------------------------------------------------------------- //
+
+class RenderPass {
+public:
+    GLuint FBO = 0;
+    GLuint vao, vbo;
+    std::vector<GLuint> colorAttachments;
+    GLuint program;
+    int width = 512;
+    int height = 512;
+    void bindData(bool finalPass = false) {
+        if (!finalPass) glGenFramebuffers(1, &FBO);
+        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        std::vector<vec3> square = { vec3(-1, -1, 0), vec3(1, -1, 0), vec3(-1, 1, 0), vec3(1, 1, 0), vec3(-1, 1, 0), vec3(1, -1, 0) };
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * square.size(), NULL, GL_STATIC_DRAW);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vec3) * square.size(), &square[0]);
+
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
+        glEnableVertexAttribArray(0);   // layout (location = 0) 
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+        // 不是 finalPass 则生成帧缓冲的颜色附件
+        if (!finalPass) {
+            std::vector<GLuint> attachments;
+            for (int i = 0; i < colorAttachments.size(); i++) {
+                glBindTexture(GL_TEXTURE_2D, colorAttachments[i]);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorAttachments[i], 0);// 将颜色纹理绑定到 i 号颜色附件
+                attachments.push_back(GL_COLOR_ATTACHMENT0 + i);
+            }
+            glDrawBuffers(attachments.size(), &attachments[0]);
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+    void draw(std::vector<GLuint> texPassArray = {}) {
+        glUseProgram(program);
+        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+        glBindVertexArray(vao);
+        // 传上一帧的帧缓冲颜色附件
+        for (int i = 0; i < texPassArray.size(); i++) {
+            glActiveTexture(GL_TEXTURE0 + i);
+            glBindTexture(GL_TEXTURE_2D, texPassArray[i]);
+            std::string uName = "texPass" + std::to_string(i);
+            glUniform1i(glGetUniformLocation(program, uName.c_str()), i);
+        }
+        glViewport(0, 0, width, height);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        glBindVertexArray(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glUseProgram(0);
+    }
+};
+
+// ----------------------------------------------------------------------------- //
+
+GLuint trianglesTextureBuffer;
+GLuint nodesTextureBuffer;
+GLuint lastFrame;
+GLuint hdrMap;
+
+RenderPass pass1;
+RenderPass pass2;
+RenderPass pass3;
+
+// 相机参数
+float upAngle = 0.0;
+float rotatAngle = 0.0;
+float r = 4.0;
+
+// ----------------------------------------------------------------------------- //
+
+// 按照三角形中心排序 -- 比较函数
+bool cmpx(const Triangle& t1, const Triangle& t2) {
+    vec3 center1 = (t1.p1 + t1.p2 + t1.p3) / vec3(3, 3, 3);
+    vec3 center2 = (t2.p1 + t2.p2 + t2.p3) / vec3(3, 3, 3);
+    return center1.x < center2.x;
+}
+bool cmpy(const Triangle& t1, const Triangle& t2) {
+    vec3 center1 = (t1.p1 + t1.p2 + t1.p3) / vec3(3, 3, 3);
+    vec3 center2 = (t2.p1 + t2.p2 + t2.p3) / vec3(3, 3, 3);
+    return center1.y < center2.y;
+}
+bool cmpz(const Triangle& t1, const Triangle& t2) {
+    vec3 center1 = (t1.p1 + t1.p2 + t1.p3) / vec3(3, 3, 3);
+    vec3 center2 = (t2.p1 + t2.p2 + t2.p3) / vec3(3, 3, 3);
+    return center1.z < center2.z;
+}
+
+// ----------------------------------------------------------------------------- //
+
+// 读取文件并且返回一个长字符串表示文件内容
+std::string readShaderFile(std::string filepath) {
+    std::string res, line;
+    std::ifstream fin(filepath);
+    if (!fin.is_open())
+    {
+        std::cout << "文件 " << filepath << " 打开失败" << std::endl;
+        exit(-1);
+    }
+    while (std::getline(fin, line))
+    {
+        res += line + '\n';
+    }
+    fin.close();
+    return res;
+}
+
+GLuint getTextureRGB32F(int width, int height) {
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    return tex;
+}
+
+// 获取着色器对象
+GLuint getShaderProgram(std::string fshader, std::string vshader) {
+    // 读取shader源文件
+    std::string vSource = readShaderFile(vshader);
+    std::string fSource = readShaderFile(fshader);
+    const char* vpointer = vSource.c_str();
+    const char* fpointer = fSource.c_str();
+
+    // 容错
+    GLint success;
+    GLchar infoLog[512];
+
+    // 创建并编译顶点着色器
+    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, (const GLchar**)(&vpointer), NULL);
+    glCompileShader(vertexShader);
+    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);   // 错误检测
+    if (!success)
+    {
+        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+        std::cout << "顶点着色器编译错误\n" << infoLog << std::endl;
+        exit(-1);
+    }
+
+    // 创建并且编译片段着色器
+    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, (const GLchar**)(&fpointer), NULL);
+    glCompileShader(fragmentShader);
+    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);   // 错误检测
+    if (!success)
+    {
+        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
+        std::cout << "片段着色器编译错误\n" << infoLog << std::endl;
+        exit(-1);
+    }
+
+    // 链接两个着色器到program对象
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    // 删除着色器对象
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    return shaderProgram;
+}
+
+// ----------------------------------------------------------------------------- //
+
+// 模型变换矩阵
+mat4 getTransformMatrix(vec3 rotateCtrl, vec3 translateCtrl, vec3 scaleCtrl) {
+    glm::mat4 unit(    // 单位矩阵
+        glm::vec4(1, 0, 0, 0),
+        glm::vec4(0, 1, 0, 0),
+        glm::vec4(0, 0, 1, 0),
+        glm::vec4(0, 0, 0, 1)
+    );
+    mat4 scale = glm::scale(unit, scaleCtrl);
+    mat4 translate = glm::translate(unit, translateCtrl);
+    mat4 rotate = unit;
+    rotate = glm::rotate(rotate, glm::radians(rotateCtrl.x), glm::vec3(1, 0, 0));
+    rotate = glm::rotate(rotate, glm::radians(rotateCtrl.y), glm::vec3(0, 1, 0));
+    rotate = glm::rotate(rotate, glm::radians(rotateCtrl.z), glm::vec3(0, 0, 1));
+
+    mat4 model = translate * rotate * scale;
+    return model;
+}
+
+// 读取 obj
+void readObj(std::string filepath, std::vector<Triangle>& triangles, Material material, mat4 trans, bool smoothNormal) {
+
+    // 顶点位置，索引
+    std::vector<vec3> vertices;
+    std::vector<GLuint> indices;
+
+    // 打开文件流
+    std::ifstream fin(filepath);
+    std::string line;
+    if (!fin.is_open()) {
+        std::cout << "文件 " << filepath << " 打开失败" << std::endl;
+        exit(-1);
+    }
+
+    // 计算 AABB 盒，归一化模型大小
+    float maxx = -11451419.19;
+    float maxy = -11451419.19;
+    float maxz = -11451419.19;
+    float minx = 11451419.19;
+    float miny = 11451419.19;
+    float minz = 11451419.19;
+
+    // 按行读取
+    while (std::getline(fin, line)) {
+        std::istringstream sin(line);   // 以一行的数据作为 string stream 解析并且读取
+        std::string type;
+        GLfloat x, y, z;
+        int v0, v1, v2;
+        int vn0, vn1, vn2;
+        int vt0, vt1, vt2;
+        char slash;
+
+        // 统计斜杆数目，用不同格式读取
+        int slashCnt = 0;
+        for (int i = 0; i < line.length(); i++) {
+            if (line[i] == '/') slashCnt++;
+        }
+
+        // 读取obj文件
+        sin >> type;
+        if (type == "v") {
+            sin >> x >> y >> z;
+            vertices.push_back(vec3(x, y, z));
+            maxx = max(maxx, x); maxy = max(maxx, y); maxz = max(maxx, z);
+            minx = min(minx, x); miny = min(minx, y); minz = min(minx, z);
+        }
+        if (type == "f") {
+            if (slashCnt == 6) {
+                sin >> v0 >> slash >> vt0 >> slash >> vn0;
+                sin >> v1 >> slash >> vt1 >> slash >> vn1;
+                sin >> v2 >> slash >> vt2 >> slash >> vn2;
+            }
+            else if (slashCnt == 3) {
+                sin >> v0 >> slash >> vt0;
+                sin >> v1 >> slash >> vt1;
+                sin >> v2 >> slash >> vt2;
+            }
+            else {
+                sin >> v0 >> v1 >> v2;
+            }
+            indices.push_back(v0 - 1);
+            indices.push_back(v1 - 1);
+            indices.push_back(v2 - 1);
+        }
+    }
+
+    // 模型大小归一化
+    float lenx = maxx - minx;
+    float leny = maxy - miny;
+    float lenz = maxz - minz;
+    float maxaxis = max(lenx, max(leny, lenz));
+    for (auto& v : vertices) {
+        v.x /= maxaxis;
+        v.y /= maxaxis;
+        v.z /= maxaxis;
+    }
+
+    // 通过矩阵进行坐标变换
+    for (auto& v : vertices) {
+        vec4 vv = vec4(v.x, v.y, v.z, 1);
+        vv = trans * vv;
+        v = vec3(vv.x, vv.y, vv.z);
+    }
+
+    // 生成法线
+    std::vector<vec3> normals(vertices.size(), vec3(0, 0, 0));
+    for (int i = 0; i < indices.size(); i += 3) {
+        vec3 p1 = vertices[indices[i]];
+        vec3 p2 = vertices[indices[i + 1]];
+        vec3 p3 = vertices[indices[i + 2]];
+        vec3 n = normalize(cross(p2 - p1, p3 - p1));
+        normals[indices[i]] += n;
+        normals[indices[i + 1]] += n;
+        normals[indices[i + 2]] += n;
+    }
+
+    // 构建 Triangle 对象数组
+    int offset = triangles.size();  // 增量更新
+    triangles.resize(offset + indices.size() / 3);
+    for (int i = 0; i < indices.size(); i += 3) {
+        Triangle& t = triangles[offset + i / 3];
+        // 传顶点属性
+        t.p1 = vertices[indices[i]];
+        t.p2 = vertices[indices[i + 1]];
+        t.p3 = vertices[indices[i + 2]];
+        if (!smoothNormal) {
+            vec3 n = normalize(cross(t.p2 - t.p1, t.p3 - t.p1));
+            t.n1 = n; t.n2 = n; t.n3 = n;
+        }
+        else {
+            t.n1 = normalize(normals[indices[i]]);
+            t.n2 = normalize(normals[indices[i + 1]]);
+            t.n3 = normalize(normals[indices[i + 2]]);
+        }
+
+        // 传材质
+        t.material = material;
+    }
+}
+
+// 构建 BVH
+int buildBVH(std::vector<Triangle>& triangles, std::vector<BVHNode>& nodes, int l, int r, int n) {
+    if (l > r) return 0;
+
+    // 注：
+    // 此处不可通过指针，引用等方式操作，必须用 nodes[id] 来操作
+    // 因为 std::vector<> 扩容时会拷贝到更大的内存，那么地址就改变了
+    // 而指针，引用均指向原来的内存，所以会发生错误
+    nodes.push_back(BVHNode());
+    int id = nodes.size() - 1;   // 注意： 先保存索引
+    nodes[id].left = nodes[id].right = nodes[id].n = nodes[id].index = 0;
+    nodes[id].AA = vec3(1145141919, 1145141919, 1145141919);
+    nodes[id].BB = vec3(-1145141919, -1145141919, -1145141919);
+
+    // 计算 AABB
+    for (int i = l; i <= r; i++) {
+        // 最小点 AA
+        float minx = min(triangles[i].p1.x, min(triangles[i].p2.x, triangles[i].p3.x));
+        float miny = min(triangles[i].p1.y, min(triangles[i].p2.y, triangles[i].p3.y));
+        float minz = min(triangles[i].p1.z, min(triangles[i].p2.z, triangles[i].p3.z));
+        nodes[id].AA.x = min(nodes[id].AA.x, minx);
+        nodes[id].AA.y = min(nodes[id].AA.y, miny);
+        nodes[id].AA.z = min(nodes[id].AA.z, minz);
+        // 最大点 BB
+        float maxx = max(triangles[i].p1.x, max(triangles[i].p2.x, triangles[i].p3.x));
+        float maxy = max(triangles[i].p1.y, max(triangles[i].p2.y, triangles[i].p3.y));
+        float maxz = max(triangles[i].p1.z, max(triangles[i].p2.z, triangles[i].p3.z));
+        nodes[id].BB.x = max(nodes[id].BB.x, maxx);
+        nodes[id].BB.y = max(nodes[id].BB.y, maxy);
+        nodes[id].BB.z = max(nodes[id].BB.z, maxz);
+    }
+
+    // 不多于 n 个三角形 返回叶子节点
+    if ((r - l + 1) <= n) {
+        nodes[id].n = r - l + 1;
+        nodes[id].index = l;
+        return id;
+    }
+
+    // 否则递归建树
+    float lenx = nodes[id].BB.x - nodes[id].AA.x;
+    float leny = nodes[id].BB.y - nodes[id].AA.y;
+    float lenz = nodes[id].BB.z - nodes[id].AA.z;
+    // 按 x 划分
+    if (lenx >= leny && lenx >= lenz)
+        std::sort(triangles.begin() + l, triangles.begin() + r + 1, cmpx);
+    // 按 y 划分
+    if (leny >= lenx && leny >= lenz)
+        std::sort(triangles.begin() + l, triangles.begin() + r + 1, cmpy);
+    // 按 z 划分
+    if (lenz >= lenx && lenz >= leny)
+        std::sort(triangles.begin() + l, triangles.begin() + r + 1, cmpz);
+    // 递归
+    int mid = (l + r) / 2;
+    int left = buildBVH(triangles, nodes, l, mid, n);
+    int right = buildBVH(triangles, nodes, mid + 1, r, n);
+
+    nodes[id].left = left;
+    nodes[id].right = right;
+
+    return id;
+}
+
+// SAH 优化构建 BVH
+int buildBVHwithSAH(std::vector<Triangle>& triangles, std::vector<BVHNode>& nodes, int l, int r, int n) {
+    if (l > r) return 0;
+
+    nodes.push_back(BVHNode());
+    int id = nodes.size() - 1;
+    nodes[id].left = nodes[id].right = nodes[id].n = nodes[id].index = 0;
+    nodes[id].AA = vec3(1145141919, 1145141919, 1145141919);
+    nodes[id].BB = vec3(-1145141919, -1145141919, -1145141919);
+
+    // 计算 AABB
+    for (int i = l; i <= r; i++) {
+        // 最小点 AA
+        float minx = min(triangles[i].p1.x, min(triangles[i].p2.x, triangles[i].p3.x));
+        float miny = min(triangles[i].p1.y, min(triangles[i].p2.y, triangles[i].p3.y));
+        float minz = min(triangles[i].p1.z, min(triangles[i].p2.z, triangles[i].p3.z));
+        nodes[id].AA.x = min(nodes[id].AA.x, minx);
+        nodes[id].AA.y = min(nodes[id].AA.y, miny);
+        nodes[id].AA.z = min(nodes[id].AA.z, minz);
+        // 最大点 BB
+        float maxx = max(triangles[i].p1.x, max(triangles[i].p2.x, triangles[i].p3.x));
+        float maxy = max(triangles[i].p1.y, max(triangles[i].p2.y, triangles[i].p3.y));
+        float maxz = max(triangles[i].p1.z, max(triangles[i].p2.z, triangles[i].p3.z));
+        nodes[id].BB.x = max(nodes[id].BB.x, maxx);
+        nodes[id].BB.y = max(nodes[id].BB.y, maxy);
+        nodes[id].BB.z = max(nodes[id].BB.z, maxz);
+    }
+
+    // 不多于 n 个三角形 返回叶子节点
+    if ((r - l + 1) <= n) {
+        nodes[id].n = r - l + 1;
+        nodes[id].index = l;
+        return id;
+    }
+
+    // 否则递归建树
+    float Cost = INF;
+    int Axis = 0;
+    int Split = (l + r) / 2;
+    for (int axis = 0; axis < 3; axis++) {
+        // 分别按 x，y，z 轴排序
+        if (axis == 0) std::sort(&triangles[0] + l, &triangles[0] + r + 1, cmpx);
+        if (axis == 1) std::sort(&triangles[0] + l, &triangles[0] + r + 1, cmpy);
+        if (axis == 2) std::sort(&triangles[0] + l, &triangles[0] + r + 1, cmpz);
+
+        // leftMax[i]: [l, i] 中最大的 xyz 值
+        // leftMin[i]: [l, i] 中最小的 xyz 值
+        std::vector<vec3> leftMax(r - l + 1, vec3(-INF, -INF, -INF));
+        std::vector<vec3> leftMin(r - l + 1, vec3(INF, INF, INF));
+        // 计算前缀 注意 i-l 以对齐到下标 0
+        for (int i = l; i <= r; i++) {
+            Triangle& t = triangles[i];
+            int bias = (i == l) ? 0 : 1;  // 第一个元素特殊处理
+
+            leftMax[i - l].x = max(leftMax[i - l - bias].x, max(t.p1.x, max(t.p2.x, t.p3.x)));
+            leftMax[i - l].y = max(leftMax[i - l - bias].y, max(t.p1.y, max(t.p2.y, t.p3.y)));
+            leftMax[i - l].z = max(leftMax[i - l - bias].z, max(t.p1.z, max(t.p2.z, t.p3.z)));
+
+            leftMin[i - l].x = min(leftMin[i - l - bias].x, min(t.p1.x, min(t.p2.x, t.p3.x)));
+            leftMin[i - l].y = min(leftMin[i - l - bias].y, min(t.p1.y, min(t.p2.y, t.p3.y)));
+            leftMin[i - l].z = min(leftMin[i - l - bias].z, min(t.p1.z, min(t.p2.z, t.p3.z)));
+        }
+
+        // rightMax[i]: [i, r] 中最大的 xyz 值
+        // rightMin[i]: [i, r] 中最小的 xyz 值
+        std::vector<vec3> rightMax(r - l + 1, vec3(-INF, -INF, -INF));
+        std::vector<vec3> rightMin(r - l + 1, vec3(INF, INF, INF));
+        // 计算后缀 注意 i-l 以对齐到下标 0
+        for (int i = r; i >= l; i--) {
+            Triangle& t = triangles[i];
+            int bias = (i == r) ? 0 : 1;  // 第一个元素特殊处理
+
+            rightMax[i - l].x = max(rightMax[i - l + bias].x, max(t.p1.x, max(t.p2.x, t.p3.x)));
+            rightMax[i - l].y = max(rightMax[i - l + bias].y, max(t.p1.y, max(t.p2.y, t.p3.y)));
+            rightMax[i - l].z = max(rightMax[i - l + bias].z, max(t.p1.z, max(t.p2.z, t.p3.z)));
+
+            rightMin[i - l].x = min(rightMin[i - l + bias].x, min(t.p1.x, min(t.p2.x, t.p3.x)));
+            rightMin[i - l].y = min(rightMin[i - l + bias].y, min(t.p1.y, min(t.p2.y, t.p3.y)));
+            rightMin[i - l].z = min(rightMin[i - l + bias].z, min(t.p1.z, min(t.p2.z, t.p3.z)));
+        }
+
+        // 遍历寻找分割
+        float cost = INF;
+        int split = l;
+        for (int i = l; i <= r - 1; i++) {
+            float lenx, leny, lenz;
+            // 左侧 [l, i]
+            vec3 leftAA = leftMin[i - l];
+            vec3 leftBB = leftMax[i - l];
+            lenx = leftBB.x - leftAA.x;
+            leny = leftBB.y - leftAA.y;
+            lenz = leftBB.z - leftAA.z;
+            float leftS = 2.0 * ((lenx * leny) + (lenx * lenz) + (leny * lenz));
+            float leftCost = leftS * (i - l + 1);
+
+            // 右侧 [i+1, r]
+            vec3 rightAA = rightMin[i + 1 - l];
+            vec3 rightBB = rightMax[i + 1 - l];
+            lenx = rightBB.x - rightAA.x;
+            leny = rightBB.y - rightAA.y;
+            lenz = rightBB.z - rightAA.z;
+            float rightS = 2.0 * ((lenx * leny) + (lenx * lenz) + (leny * lenz));
+            float rightCost = rightS * (r - i);
+
+            // 记录每个分割的最小答案
+            float totalCost = leftCost + rightCost;
+            if (totalCost < cost) {
+                cost = totalCost;
+                split = i;
+            }
+        }
+        // 记录每个轴的最佳答案
+        if (cost < Cost) {
+            Cost = cost;
+            Axis = axis;
+            Split = split;
+        }
+    }
+
+    // 按最佳轴分割
+    if (Axis == 0) std::sort(&triangles[0] + l, &triangles[0] + r + 1, cmpx);
+    if (Axis == 1) std::sort(&triangles[0] + l, &triangles[0] + r + 1, cmpy);
+    if (Axis == 2) std::sort(&triangles[0] + l, &triangles[0] + r + 1, cmpz);
+
+    // 递归
+    int left = buildBVHwithSAH(triangles, nodes, l, Split, n);
+    int right = buildBVHwithSAH(triangles, nodes, Split + 1, r, n);
+
+    nodes[id].left = left;
+    nodes[id].right = right;
+
+    return id;
+}
+
+// ----------------------------------------------------------------------------- //
+
+// 绘制
+clock_t t1, t2;
+double dt, fps;
+unsigned int frameCounter = 0;
+void display() {
+
+    // 帧计时
+    t2 = clock();
+    dt = (double)(t2 - t1) / CLOCKS_PER_SEC;
+    fps = 1.0 / dt;
+    std::cout << "\r";
+    std::cout << std::fixed << std::setprecision(2) << "FPS : " << fps << "    迭代次数: " << frameCounter;
+    t1 = t2;
+
+    // 相机参数
+    vec3 eye = vec3(-sin(radians(rotatAngle)) * cos(radians(upAngle)), sin(radians(upAngle)), cos(radians(rotatAngle)) * cos(radians(upAngle)));
+    eye.x *= r; eye.y *= r; eye.z *= r;
+    mat4 cameraRotate = lookAt(eye, vec3(0, 0, 0), vec3(0, 1, 0));  // 相机注视着原点
+    cameraRotate = inverse(cameraRotate);   // lookat 的逆矩阵将光线方向进行转换
+
+    // 传 uniform 给 pass1
+    glUseProgram(pass1.program);
+    glUniform3fv(glGetUniformLocation(pass1.program, "eye"), 1, value_ptr(eye));
+    glUniformMatrix4fv(glGetUniformLocation(pass1.program, "cameraRotate"), 1, GL_FALSE, value_ptr(cameraRotate));
+    glUniform1ui(glGetUniformLocation(pass1.program, "frameCounter"), frameCounter++);// 传计数器用作随机种子
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_BUFFER, trianglesTextureBuffer);
+    glUniform1i(glGetUniformLocation(pass1.program, "triangles"), 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_BUFFER, nodesTextureBuffer);
+    glUniform1i(glGetUniformLocation(pass1.program, "nodes"), 1);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, lastFrame);
+    glUniform1i(glGetUniformLocation(pass1.program, "lastFrame"), 2);
+
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, hdrMap);
+    glUniform1i(glGetUniformLocation(pass1.program, "hdrMap"), 3);
+
+    // 绘制
+    pass1.draw();
+    pass2.draw(pass1.colorAttachments);
+    pass3.draw(pass2.colorAttachments);
+
+    glutSwapBuffers();
+}
+
+// 每一帧
+void frameFunc() {
+    glutPostRedisplay();
+}
+
+// 鼠标运动函数
+double lastX = 0.0, lastY = 0.0;
+void mouse(int x, int y) {
+    frameCounter = 0;
+    // 调整旋转
+    rotatAngle += 150 * (x - lastX) / 512;
+    upAngle += 150 * (y - lastY) / 512;
+    upAngle = min(upAngle, 89.0f);
+    upAngle = max(upAngle, -89.0f);
+    lastX = x, lastY = y;
+    glutPostRedisplay();    // 重绘
+}
+
+// 鼠标按下
+void mouseDown(int button, int state, int x, int y) {
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        lastX = x, lastY = y;
+    }
+}
+
+// 鼠标滚轮函数
+void mouseWheel(int wheel, int direction, int x, int y) {
+    frameCounter = 0;
+    r += -direction * 0.5;
+    glutPostRedisplay();    // 重绘
+}
+
+// ----------------------------------------------------------------------------- //
+
+int main(int argc, char** argv) {
+
+    glutInit(&argc, argv);              // glut初始化
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DEPTH);
+    glutInitWindowSize(512, 512);// 窗口大小
+    glutInitWindowPosition(350, 50);
+    glutCreateWindow("Path Tracing GPU"); // 创建OpenGL上下文
+    glewInit();
+
+    // ----------------------------------------------------------------------------- //
+
+    // scene config
+    std::vector<Triangle> triangles;
+
+    Material m;
+    m.baseColor = vec3(1, 1, 1);
+    readObj("models/Stanford Bunny.obj", triangles, m, getTransformMatrix(vec3(0, 0, 0), vec3(0.3, -1.6, 0), vec3(1.5, 1.5, 1.5)), true);
+    //readObj("models/room.obj", triangles, m, getTransformMatrix(vec3(0, 0, 0), vec3(0.0, -2.5, 0), vec3(10, 10, 10)), true);
+
+    m.baseColor = vec3(0.725, 0.71, 0.68);
+    readObj("models/quad.obj", triangles, m, getTransformMatrix(vec3(0, 0, 0), vec3(0, -1.4, 0), vec3(18.83, 0.01, 18.83)), false);
+
+    m.baseColor = vec3(1, 1, 1);
+    m.emissive = vec3(30, 20, 10);
+    //readObj("models/quad.obj", triangles, m, getTransformMatrix(vec3(0, 0, 0), vec3(0.0, 1.38, -0.0), vec3(0.7, 0.01, 0.7)), false);
+    readObj("models/sphere.obj", triangles, m, getTransformMatrix(vec3(0, 0, 0), vec3(0.0, 0.9, -0.0), vec3(1, 1, 1)), false);
+
+    int nTriangles = triangles.size();
+    std::cout << "模型读取完成: 共 " << nTriangles << " 个三角形" << std::endl;
+
+    // 建立 bvh
+    BVHNode testNode;
+    testNode.left = 255;
+    testNode.right = 128;
+    testNode.n = 30;
+    testNode.AA = vec3(1, 1, 0);
+    testNode.BB = vec3(0, 1, 0);
+    std::vector<BVHNode> nodes{ testNode };
+    //buildBVH(triangles, nodes, 0, triangles.size() - 1, 8);
+    buildBVHwithSAH(triangles, nodes, 0, triangles.size() - 1, 8);
+    int nNodes = nodes.size();
+    std::cout << "BVH 建立完成: 共 " << nNodes << " 个节点" << std::endl;
+
+    // 编码 三角形, 材质
+    std::vector<Triangle_encoded> triangles_encoded(nTriangles);
+    for (int i = 0; i < nTriangles; i++) {
+        Triangle& t = triangles[i];
+        Material& m = t.material;
+        // 顶点位置
+        triangles_encoded[i].p1 = t.p1;
+        triangles_encoded[i].p2 = t.p2;
+        triangles_encoded[i].p3 = t.p3;
+        // 顶点法线
+        triangles_encoded[i].n1 = t.n1;
+        triangles_encoded[i].n2 = t.n2;
+        triangles_encoded[i].n3 = t.n3;
+        // 材质
+        triangles_encoded[i].emissive = m.emissive;
+        triangles_encoded[i].baseColor = m.baseColor;
+        triangles_encoded[i].param1 = vec3(m.subsurface, m.metallic, m.specular);
+        triangles_encoded[i].param2 = vec3(m.specularTint, m.roughness, m.anisotropic);
+        triangles_encoded[i].param3 = vec3(m.sheen, m.sheenTint, m.clearcoat);
+        triangles_encoded[i].param4 = vec3(m.clearcoatGloss, m.IOR, m.transmission);
+    }
+
+    // 编码 BVHNode, aabb
+    std::vector<BVHNode_encoded> nodes_encoded(nNodes);
+    for (int i = 0; i < nNodes; i++) {
+        nodes_encoded[i].childs = vec3(nodes[i].left, nodes[i].right, 0);
+        nodes_encoded[i].leafInfo = vec3(nodes[i].n, nodes[i].index, 0);
+        nodes_encoded[i].AA = nodes[i].AA;
+        nodes_encoded[i].BB = nodes[i].BB;
+    }
+
+    // ----------------------------------------------------------------------------- //
+
+    // 生成纹理
+
+    // 三角形数组
+    GLuint tbo0;
+    glGenBuffers(1, &tbo0);
+    glBindBuffer(GL_TEXTURE_BUFFER, tbo0);
+    glBufferData(GL_TEXTURE_BUFFER, triangles_encoded.size() * sizeof(Triangle_encoded), &triangles_encoded[0], GL_STATIC_DRAW);
+    glGenTextures(1, &trianglesTextureBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, trianglesTextureBuffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32F, tbo0);
+
+    // BVHNode 数组
+    GLuint tbo1;
+    glGenBuffers(1, &tbo1);
+    glBindBuffer(GL_TEXTURE_BUFFER, tbo1);
+    glBufferData(GL_TEXTURE_BUFFER, nodes_encoded.size() * sizeof(BVHNode_encoded), &nodes_encoded[0], GL_STATIC_DRAW);
+    glGenTextures(1, &nodesTextureBuffer);
+    glBindTexture(GL_TEXTURE_BUFFER, nodesTextureBuffer);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32F, tbo1);
+
+    // hdr 全景图
+    HDRLoaderResult hdrRes;
+    bool r = HDRLoader::load("./HDR/sunset.hdr", hdrRes);
+    hdrMap = getTextureRGB32F(hdrRes.width, hdrRes.height);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, hdrRes.width, hdrRes.height, 0, GL_RGB, GL_FLOAT, hdrRes.cols);
+
+    // ----------------------------------------------------------------------------- //
+
+    // 管线配置
+
+    pass1.program = getShaderProgram("./shaders/fshader.fsh", "./shaders/vshader.vsh");
+    //pass1.width = pass1.height = 256;
+    pass1.colorAttachments.push_back(getTextureRGB32F(pass1.width, pass1.height));
+    pass1.colorAttachments.push_back(getTextureRGB32F(pass1.width, pass1.height));
+    pass1.colorAttachments.push_back(getTextureRGB32F(pass1.width, pass1.height));
+    pass1.bindData();
+
+    glUseProgram(pass1.program);
+    glUniform1i(glGetUniformLocation(pass1.program, "nTriangles"), triangles.size());
+    glUniform1i(glGetUniformLocation(pass1.program, "nNodes"), nodes.size());
+    glUniform1i(glGetUniformLocation(pass1.program, "width"), pass1.width);
+    glUniform1i(glGetUniformLocation(pass1.program, "height"), pass1.height);
+    glUseProgram(0);
+
+    pass2.program = getShaderProgram("./shaders/pass2.fsh", "./shaders/vshader.vsh");
+    lastFrame = getTextureRGB32F(pass2.width, pass2.height);
+    pass2.colorAttachments.push_back(lastFrame);
+    pass2.bindData();
+
+    pass3.program = getShaderProgram("./shaders/pass3.fsh", "./shaders/vshader.vsh");
+    pass3.bindData(true);
 
 
+    // ----------------------------------------------------------------------------- //
 
-//int main() {
-//	Mat mat;
-//
-//	double* image = new double[WIDTH * HEIGHT * 3];
-//	memset(image, 0.0, sizeof(double) * WIDTH * HEIGHT * 3);
-//
-//	vector<Shape*> shapes;  // 几何物体的集合
-//
-//	//shapes.push_back(new Triangle(vec3(-0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, 0.4, -0.6), YELLOW));
-//	//shapes.push_back(new Triangle(vec3(0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, -0.95, -0.6), YELLOW));
-//	Triangle tt = Triangle(vec3(-0.2, -0.2, -0.95), vec3(0.2, -0.2, -0.95), vec3(-0.0, -0.9, 0.4), YELLOW);
-//	//tt.material.specularRate = 0.1;
-//	//tt.material.refractRate = 0.85;
-//	//tt.material.refractRoughness = 0.3;
-//	//shapes.push_back(&tt);
-//
-//	shapes.push_back(new Triangle(vec3(-0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, 0.4, -0.6), YELLOW));
-//	shapes.push_back(new Triangle(vec3(0.15, 0.4, -0.6), vec3(-0.15, -0.95, -0.6), vec3(0.15, -0.95, -0.6), YELLOW));
-//
-//	// 发光物
-//	Triangle l1 = Triangle(vec3(0.4, 0.99, 0.4), vec3(-0.4, 0.99, -0.4), vec3(-0.4, 0.99, 0.4), WHITE);
-//	Triangle l2 = Triangle(vec3(0.4, 0.99, 0.4), vec3(0.4, 0.99, -0.4), vec3(-0.4, 0.99, -0.4), WHITE);
-//	l1.material.isEmissive = true;
-//	l2.material.isEmissive = true;
-//	shapes.push_back(&l1);
-//	shapes.push_back(&l2);
-//
-//	// 球
-//	Sphere s1 = Sphere(vec3(-0.65, -0.7, 0.0), 0.3, GREEN);
-//	Sphere s2 = Sphere(vec3(0.0, -0.3, 0.0), 0.4, WHITE);
-//	Sphere s3 = Sphere(vec3(0.65, 0.1, 0.0), 0.3, BLUE);
-//	s1.material.specularRate = 0.7;
-//	s1.material.roughness = 0.1;
-//
-//	s2.material.specularRate = 0.3;
-//	s2.material.refractRate = 0.95;
-//	s2.material.refractAngle = 0.1;
-//	s2.material.refractRoughness = 0.05;
-//
-//	s3.material.specularRate = 0.3;
-//
-//	shapes.push_back(&s1);
-//	shapes.push_back(&s2);
-//	shapes.push_back(&s3);
-//
-//	// 背景盒子
-//	// bottom
-//	shapes.push_back(new Triangle(vec3(1, -1, 1), vec3(-1, -1, -1), vec3(-1, -1, 1), WHITE));
-//	shapes.push_back(new Triangle(vec3(1, -1, 1), vec3(1, -1, -1), vec3(-1, -1, -1), WHITE));
-//	// top
-//	shapes.push_back(new Triangle(vec3(1, 1, 1), vec3(-1, 1, 1), vec3(-1, 1, -1), WHITE));
-//	shapes.push_back(new Triangle(vec3(1, 1, 1), vec3(-1, 1, -1), vec3(1, 1, -1), WHITE));
-//	// back
-//	shapes.push_back(new Triangle(vec3(1, -1, -1), vec3(-1, 1, -1), vec3(-1, -1, -1), CYAN));
-//	shapes.push_back(new Triangle(vec3(1, -1, -1), vec3(1, 1, -1), vec3(-1, 1, -1), CYAN));
-//	// left
-//	shapes.push_back(new Triangle(vec3(-1, -1, -1), vec3(-1, 1, 1), vec3(-1, -1, 1), BLUE));
-//	shapes.push_back(new Triangle(vec3(-1, -1, -1), vec3(-1, 1, -1), vec3(-1, 1, 1), BLUE));
-//	// right
-//	shapes.push_back(new Triangle(vec3(1, 1, 1), vec3(1, -1, -1), vec3(1, -1, 1), RED));
-//	shapes.push_back(new Triangle(vec3(1, -1, -1), vec3(1, 1, 1), vec3(1, 1, -1), RED));
-//
-//	int picIndex = 0;
-//	// render loop
-//	// -----------
-//	while (1)
-//	{
-//		omp_set_num_threads(50); // 线程个数
-//#pragma omp parallel for
-//		for (int k = 0; k < SAMPLE; k++)
-//		{
-//			double* p = image;
-//			for (int i = 0; i < HEIGHT; i++)
-//			{
-//				for (int j = 0; j < WIDTH; j++)
-//				{
-//					// 像素坐标转投影平面坐标
-//					double x = 2.0 * double(j) / double(WIDTH) - 1.0;
-//					double y = 2.0 * double(HEIGHT - i) / double(HEIGHT) - 1.0;
-//
-//					vec3 coord = vec3(x, y, SCREEN_Z);          // 计算投影平面坐标
-//					vec3 direction = normalize(coord - EYE);    // 计算光线投射方向
-//
-//					// 生成光线
-//					Ray ray;
-//					ray.startPoint = coord;
-//					ray.direction = direction;
-//
-//					// 与场景的交点
-//					HitResult res = shoot(shapes, ray);
-//					vec3 color = vec3(0, 0, 0);
-//
-//					if (res.isHit)
-//					{
-//						// 命中光源直接返回光源颜色
-//						if (res.material.isEmissive)
-//						{
-//							color = res.material.color;
-//						}
-//						// 命中实体则选择一个随机方向重新发射光线并且进行路径追踪
-//						else
-//						{
-//							// 根据交点处法向量生成交点处反射的随机半球向量
-//							Ray randomRay;
-//							randomRay.startPoint = res.hitPoint;
-//							randomRay.direction = randomDirection(res.material.normal);
-//
-//							// 根据反射率决定光线最终的方向
-//							double r = randf();
-//							if (r < res.material.specularRate)  // 镜面反射
-//							{
-//
-//
-//								vec3 ref = normalize(reflect(ray.direction, res.material.normal));
-//								randomRay.direction = mix(ref, randomRay.direction, res.material.roughness);
-//								color = pathTracing(shapes, randomRay, 0);
-//							}
-//							else if (res.material.specularRate <= r && r <= res.material.refractRate)    // 折射
-//							{
-//								vec3 ref = normalize(refract(ray.direction, res.material.normal, float(res.material.refractAngle)));
-//								randomRay.direction = mix(ref, -randomRay.direction, res.material.refractRoughness);
-//								color = pathTracing(shapes, randomRay, 0);
-//							}
-//							else    // 漫反射
-//							{
-//
-//
-//								vec3 srcColor = res.material.color;
-//								vec3 ptColor = pathTracing(shapes, randomRay, 0);
-//								color = ptColor * srcColor;    // 和原颜色混合
-//							}
-//							color *= BRIGHTNESS;
-//						}
-//					}
-//
-//					*p += color.x; p++;  // R 通道
-//					*p += color.y; p++;  // G 通道
-//					*p += color.z; p++;  // B 通道
-//				}
-//			}
-//		}
-//		writeImg(image, mat);
-//		//flip(mat, mat, 0);
-//		imshow("CV", mat);
-//		picIndex++;
-//		cout << picIndex << endl;
-//
-//		waitKey(0);
-//
-//		// 等待按键，退出循环
-//		if (waitKey(1) >= 0)
-//			break;
-//
-//	}
-//	return 0;
-//}
+    std::cout << "开始..." << std::endl << std::endl;
 
+    glEnable(GL_DEPTH_TEST);  // 开启深度测试
+    glClearColor(0.0, 0.0, 0.0, 1.0);   // 背景颜色 -- 黑
 
-const GLint WIDTH = 800, HEIGHT = 600;		// 先设置窗口以及其大小								
-int main()
-{
-	glfwInit();								//初始化，使用glfw来打开一个窗口
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);						// 缩放窗口的关闭
-	GLFWwindow* window_1 = glfwCreateWindow(WIDTH, HEIGHT, "Hello, friend! I'm a openGL window!", nullptr, nullptr);
-	int screenWidth, screenHeight;
-	glfwGetFramebufferSize(window_1, &screenWidth, &screenHeight);  // 获得实际占用的帧缓存大小
-	if (nullptr == window_1)			//判断窗口输出是否成功
-	{
-		cout << "Failed to create GLFW window" << endl;
-		glfwTerminate();
-		return -1;
-	}
-	glfwMakeContextCurrent(window_1);   // 捕获当前窗口，准备对当前窗口进行画图
-	glewExperimental = GL_TRUE;
-	if (glewInit() != GLEW_OK)			// 判断glew初始化是否成功
-	{
-		cout << "Failed to initialise GLEW" << endl;
-		glfwTerminate();
-		return -1;
-	}
-	glViewport(0, 0, screenWidth, screenHeight);	// 设置视口的大小
-	while (!glfwWindowShouldClose(window_1))
-	{
-		glfwPollEvents();
-		glClearColor(0.1f, 0.8f, 0.7f, 1.0f);		// 分别是红、绿、蓝、透明度的四个参数。RGB三原色+透明度
-		glClear(GL_COLOR_BUFFER_BIT);
-		glfwSwapBuffers(window_1);					// 双缓存模式
-	}
-	glfwTerminate();								// 如果循环结束：glfw关闭
-	return 0;
+    glutDisplayFunc(display);   // 设置显示回调函数
+    glutIdleFunc(frameFunc);    // 闲置时刷新
+    glutMotionFunc(mouse);      // 鼠标拖动
+    glutMouseFunc(mouseDown);   // 鼠标左键按下
+    //glutMouseWheelFunc(mouseWheel); // 滚轮缩放
+    glutMainLoop();
+
+    return 0;
 }
